@@ -332,8 +332,6 @@ If someone new joins the project, this is the recommended onboarding sequence:
 
 This repository currently uses a **proprietary, all-rights-reserved** license suitable for a commercial product in active development. See [LICENSE](C:/Users/essar/OneDrive/Documents/VOICE%20AGENT%20FOR%20SALES/LICENSE:1).
 
-If you want to open-source AI-VSA later, the license can be switched to MIT, Apache-2.0, or another model.
-
 ## Contact / Ownership
 
 Built for **Razex Solutions** as the foundation for an internal AI sales assistant and a future client-facing platform.
