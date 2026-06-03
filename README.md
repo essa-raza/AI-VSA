@@ -312,7 +312,7 @@ If `DATABASE_URL` is missing, the app falls back to in-memory storage for local 
 
 ## Contributing
 
-Please read [CONTRIBUTING.md](C:/Users/essar/OneDrive/Documents/VOICE%20AGENT%20FOR%20SALES/CONTRIBUTING.md:1) before opening large changes or provider integrations.
+Please read [CONTRIBUTING.md](CONTRIBUTING.md:1) before opening large changes or provider integrations.
 
 ## Courses / Learning Path
 
