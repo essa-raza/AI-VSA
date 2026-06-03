@@ -2,7 +2,7 @@
 
 > Human-like AI sales infrastructure for calls, WhatsApp, website chat, qualification, follow-up, and appointment setting.
 
-AI-VSA is the internal and future productized sales-agent platform for **Razex Solutions**. It is designed to handle first-contact sales conversations across voice and messaging channels, qualify prospects, collect requirements, book meetings, trigger handoffs, and help the human team focus on high-value closes.
+AI-VSA is the internal and future productized sales-agent platform for **Razex Solutions**. It is designed to handle first-contact sales conversations across voice and messaging channels, qualify prospects, and automate appointment setting.
 
 ## Why This Exists
 
@@ -189,7 +189,7 @@ scripts/
 | `POST /agent/tools/book-meeting` | Book a meeting through provider adapters |
 | `POST /api/realtime/session` | Bootstrap OpenAI realtime session |
 
-More detail is available in [docs/api-routes.md](C:/Users/essar/OneDrive/Documents/VOICE%20AGENT%20FOR%20SALES/docs/api-routes.md:1).
+More detail is available in [docs/api-routes.md](./docs/api-routes.md).
 
 ## Tech Stack
 
@@ -209,7 +209,7 @@ More detail is available in [docs/api-routes.md](C:/Users/essar/OneDrive/Documen
 
 ## Environment Overview
 
-Key variables are documented in [.env.example](C:/Users/essar/OneDrive/Documents/VOICE%20AGENT%20FOR%20SALES/.env.example:1).
+Key variables are documented in [.env.example](./.env.example).
 
 Important groups:
 
@@ -268,7 +268,7 @@ npm run typecheck
 If you want persistence:
 
 1. Create a Supabase project or any Postgres database.
-2. Apply [docs/supabase-schema.sql](C:/Users/essar/OneDrive/Documents/VOICE%20AGENT%20FOR%20SALES/docs/supabase-schema.sql:1).
+2. Apply [docs/supabase-schema.sql](./docs/supabase-schema.sql).
 3. Set `DATABASE_URL` in `.env`.
 4. Restart the API.
 
@@ -304,15 +304,15 @@ If `DATABASE_URL` is missing, the app falls back to in-memory storage for local 
 
 | File | Purpose |
 | --- | --- |
-| [docs/architecture.md](C:/Users/essar/OneDrive/Documents/VOICE%20AGENT%20FOR%20SALES/docs/architecture.md:1) | Technical architecture |
-| [docs/api-routes.md](C:/Users/essar/OneDrive/Documents/VOICE%20AGENT%20FOR%20SALES/docs/api-routes.md:1) | Route and provider overview |
-| [docs/implementation-roadmap.md](C:/Users/essar/OneDrive/Documents/VOICE%20AGENT%20FOR%20SALES/docs/implementation-roadmap.md:1) | Build priorities and cost strategy |
-| [docs/sales-playbook.md](C:/Users/essar/OneDrive/Documents/VOICE%20AGENT%20FOR%20SALES/docs/sales-playbook.md:1) | Sales framing and qualification approach |
-| [docs/supabase-schema.sql](C:/Users/essar/OneDrive/Documents/VOICE%20AGENT%20FOR%20SALES/docs/supabase-schema.sql:1) | Database schema bootstrap |
+| [docs/architecture.md](./docs/architecture.md) | Technical architecture |
+| [docs/api-routes.md](./docs/api-routes.md) | Route and provider overview |
+| [docs/implementation-roadmap.md](./docs/implementation-roadmap.md) | Build priorities and cost strategy |
+| [docs/sales-playbook.md](./docs/sales-playbook.md) | Sales framing and qualification approach |
+| [docs/supabase-schema.sql](./docs/supabase-schema.sql) | Database schema bootstrap |
 
 ## Contributing
 
-Please read [CONTRIBUTING.md](CONTRIBUTING.md:1) before opening large changes or provider integrations.
+Please read [CONTRIBUTING.md](./CONTRIBUTING.md) before opening large changes or provider integrations.
 
 ## Courses / Learning Path
 
@@ -330,7 +330,9 @@ If someone new joins the project, this is the recommended onboarding sequence:
 
 ## License
 
-This repository currently uses a **proprietary, all-rights-reserved** license suitable for a commercial product in active development. See [LICENSE](C:/Users/essar/OneDrive/Documents/VOICE%20AGENT%20FOR%20SALES/LICENSE:1).
+This repository currently uses a **proprietary, all-rights-reserved** license suitable for a commercial product in active development. See [LICENSE](./LICENSE).
+
+If you want to open-source AI-VSA later, the license can be switched to MIT, Apache-2.0, or another model.
 
 ## Contact / Ownership
 
