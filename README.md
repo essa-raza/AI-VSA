@@ -377,7 +377,7 @@ This repository is licensed under the **MIT License**. See [LICENSE](./LICENSE) 
 
 ## 👥 Contact / Ownership
 
-Built for **Razex Solutions** as the foundation for an internal AI sales assistant and a future client-facing platform.
+Built by **Razex Solutions LLC** as the foundation for an internal AI sales assistant and a future client-facing platform.
 
 ---
 
@@ -416,4 +416,4 @@ Built for **Razex Solutions** as the foundation for an internal AI sales assista
 
 ---
 
-**Made with ❤️ by Razex Solutions**
+**Made with ❤️ by Razex Solutions LLC**
