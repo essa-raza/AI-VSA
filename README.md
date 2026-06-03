@@ -1,234 +1,339 @@
 # AI-VSA
 
-AI-VSA is an outbound AI sales agent platform for selling automation services:
+> Human-like AI sales infrastructure for calls, WhatsApp, website chat, qualification, follow-up, and appointment setting.
 
-- chatbot installs for websites
-- website automation and lead capture
-- email reply automation
-- AI voice calling
-- WhatsApp and messaging automation
-- website creation or improvement offers
+AI-VSA is the internal and future productized sales-agent platform for **Razex Solutions**. It is designed to handle first-contact sales conversations across voice and messaging channels, qualify prospects, collect requirements, book meetings, trigger handoffs, and help the human team focus on high-value closes.
 
-The real goal is not to close the full deal on the first call. The goal is to sound human, build trust, qualify interest, and book an appointment with the real team.
+## Why This Exists
 
-## What We Are Building
+Most businesses lose revenue in the gap between:
 
-We are building a low-cost, high-quality outbound sales machine that:
+- a lead showing interest
+- a team replying too slowly
+- inconsistent qualification
+- missed calls
+- weak follow-up
+- no unified conversation history
 
-1. takes lead names, numbers, websites, and business context
-2. researches what automation value we can offer
-3. calls the lead with a human-like AI agent
-4. explains the value in plain business language
-5. handles basic objections
-6. pushes hard toward one outcome: a booked appointment
-7. stores call notes, interest level, objections, and next steps
+AI-VSA is built to close that gap with an AI sales layer that feels professional, helpful, and trustworthy.
 
-## Product Strategy
+## What The Product Does
 
-### Primary Offer
+AI-VSA is being built to:
 
-The AI agent should pitch automation outcomes, not technical buzzwords:
+- answer inbound calls
+- place outbound qualification calls
+- reply to website chat messages
+- handle WhatsApp conversations
+- qualify leads with structured discovery
+- estimate fit and urgency
+- book discovery calls
+- trigger human handoff when needed
+- sync lead data into CRM systems
+- keep one sales memory across channels
 
-- "We can help your website answer visitors instantly."
-- "We can automate repetitive customer messages."
-- "We can help your team reply faster and capture more orders."
-- "We can add AI voice and chat systems that save time and increase conversion."
+## Product Vision
 
-### Core Sales Motion
+The long-term goal is not just a chatbot or voice bot.
 
-The first production use case should be:
+The goal is a **multi-channel AI salesperson** that can represent Razex Solutions consistently across:
 
-**Outbound cold or warm calling to book meetings for website and business automation services**
+- phone calls
+- website chat
+- WhatsApp
+- follow-up flows
+- CRM-driven sales operations
 
-This is the narrowest path with the highest learning value.
+Humans remain in the closing loop for larger, custom, or sensitive deals.
 
-### Real Success Metric
+## Core Use Cases
 
-The system wins when it books qualified appointments for your human closers.
+| Use case | Outcome |
+| --- | --- |
+| Inbound call handling | Capture leads instead of missing them |
+| Outbound appointment setting | Turn cold or warm lists into booked calls |
+| Website chat qualification | Convert website traffic into actionable pipeline |
+| WhatsApp sales assistant | Continue the same conversation on a familiar channel |
+| Human handoff | Escalate serious buyers to the real team |
+| CRM sync | Keep lead context and next steps organized |
 
-The key metrics are:
+## Ideal Customer Profiles
 
-- contact rate
-- live conversation rate
-- trust/engagement rate
-- qualified interest rate
-- booked appointment rate
-- show-up rate
-- cost per booked appointment
+AI-VSA is designed first around sales for service businesses and automation offers such as:
 
-## Cost Strategy
+- AI agents
+- AI voice agents
+- AI chatbots
+- WhatsApp automation
+- websites and conversion systems
+- CRM automation
+- business process automation
+- custom software and SaaS
 
-We want the cheapest stack that still sounds premium and behaves reliably.
+Strong early-fit client types include:
 
-Recommended approach:
+- agencies
+- local service businesses
+- clinics
+- real estate teams
+- ecommerce brands
+- high-intent B2B service businesses
 
-- use Twilio directly for telephony control
-- use OpenAI directly for speech and reasoning
-- avoid stacking too many agent vendors early
-- keep the first dashboard simple
-- delay CRM complexity until the core appointment engine works
+## How It Works
 
-Why this path:
+```mermaid
+flowchart LR
+  A["Lead Source"] --> B["AI-VSA API"]
+  B --> C["Lead Qualification Engine"]
+  C --> D["Voice / WhatsApp / Chat Response"]
+  C --> E["Lead Repository"]
+  C --> F["CRM Sync"]
+  C --> G["Calendar Booking"]
+  C --> H["Human Handoff"]
+  E --> I["Dashboard"]
+```
 
-- lower vendor markup
-- more control over call flow
-- easier tuning of prompts and qualification logic
-- cleaner ownership of data and evaluation
+## Current Architecture
 
-As of June 4, 2026, OpenAI's official pricing page lists `gpt-realtime-whisper` at `$0.017/minute` and `gpt-realtime-translate` at `$0.034/minute`, while Twilio's official US Programmable Voice pricing page shows outbound local calls from `$0.014/minute` in the United States, with exact telephony pricing varying by destination country and number type.
+| Layer | Purpose |
+| --- | --- |
+| `apps/api` | Core backend, routes, provider adapters, orchestration |
+| `apps/web` | Operator dashboard and internal control surface |
+| `packages/agent` | Prompting, qualification logic, internal agent council |
+| `packages/shared` | Shared schemas and types |
+| `packages/database` | Repository abstraction for memory or Postgres/Supabase |
+| `docs/` | Product, architecture, schema, and route documentation |
 
-Sources:
+## Feature Status
 
-- [OpenAI API pricing](https://openai.com/api/pricing/)
-- [Twilio voice pricing](https://www.twilio.com/voice/pricing/us)
+| Area | Status | Notes |
+| --- | --- | --- |
+| Lead capture API | Ready | Create, update, score, and list leads |
+| Conversation storage | Ready | Memory fallback plus Postgres/Supabase path |
+| Dashboard API | Ready | Summary, leads, and conversation payloads |
+| OpenAI chat integration | Ready | Real API path plus heuristic fallback |
+| OpenAI realtime session bootstrap | Ready | Session endpoint implemented |
+| Twilio outbound call adapter | Ready | Live adapter with env-based activation |
+| Voice webhook handling | Ready | TwiML flow and media-stream-ready structure |
+| WhatsApp adapters | Ready | Twilio, Meta, or custom API mode |
+| Calendar booking adapter | Ready | Google, Calendly handoff, or custom webhook |
+| CRM sync adapter | Ready | HubSpot or custom webhook |
+| Persistent Postgres mode | Ready | Enabled with `DATABASE_URL` |
+| Browser-verified UI pass | Pending | Needs an available browser bridge in this environment |
 
-## Starter Architecture
+## Provider Strategy
 
-- `apps/api`
-  - outbound campaign logic
-  - lead intake
-  - call simulation
-  - qualification scoring
-  - webhook entrypoints for telephony
-- `apps/web`
-  - operator dashboard
-  - offer positioning
-  - call and qualification visibility
-- `packages/agent`
-  - call scripts
-  - objection handling
-  - appointment-setting prompts
-  - qualification logic
-- `packages/shared`
-  - shared schemas
-  - shared types
+The platform is intentionally built with **provider adapters** so we can optimize for cost, quality, and speed without rewriting the app.
 
-## What Is Already In This Repo
+| Capability | Primary path | Alternatives | Why |
+| --- | --- | --- | --- |
+| Database | Supabase Postgres | Any PostgreSQL instance | Cheap, fast, production-ready |
+| AI reasoning | OpenAI | Internal heuristics fallback | Best control and strong model quality |
+| Realtime voice | OpenAI Realtime + Twilio | Vapi, Retell | Lower markup and more ownership |
+| Telephony | Twilio | Other SIP/voice providers later | Reliable and well documented |
+| WhatsApp | Your own API or Meta Cloud API | Twilio WhatsApp | Choose based on existing approvals and control |
+| Calendar | Google Calendar | Calendly, custom webhook | Fast booking flow |
+| CRM | HubSpot | Custom CRM webhook | Standard business integration |
 
-This repo now includes:
+## Comparison
 
-- a working TypeScript monorepo
-- an API app with sales-agent endpoints
-- a repository layer that supports Postgres or Supabase via `DATABASE_URL`
-- a memory fallback for local bootstrapping when no database is configured
-- real OpenAI chat integration with heuristic fallback
-- OpenAI realtime session bootstrap endpoint
-- Twilio outbound call wiring and voice webhook support
-- WhatsApp adapters for Twilio, Meta Cloud API, or a custom API
-- calendar adapters for Google Calendar, Calendly link handoff, or a custom webhook
-- CRM adapters for HubSpot or a custom webhook
-- a lightweight dashboard with lead and conversation visibility
-- shared lead and campaign schemas
-- AI sales script, qualification helpers, and a multi-agent council layer
-- `.env.example`
-- `.venv` bootstrap support with `requirements.txt`
-- architecture and execution docs
+### AI-VSA vs basic chatbot stacks
 
-## Start Plan
+| Category | Basic chatbot | AI-VSA |
+| --- | --- | --- |
+| Channels | Usually one | Multi-channel design |
+| Sales flow | Generic Q&A | Qualification + booking + handoff |
+| Voice | Often none | Voice-first architecture supported |
+| CRM sync | Optional | Built into the product path |
+| Human handoff | Weak | First-class design principle |
+| Appointment setting | Sometimes manual | Built into the orchestration model |
 
-### Stage 1: Build the outbound engine
+### AI-VSA vs heavy vendor-stacked agent builds
 
-1. import or enter lead data
-2. enrich the lead with website notes and offer angles
-3. generate a personalized call opener
-4. run the AI call flow
-5. capture objections and interest level
-6. push for the appointment
+| Category | Heavy vendor stack | AI-VSA approach |
+| --- | --- | --- |
+| Cost | Higher recurring markup | Tries to stay direct and lean |
+| Control | Limited by vendor workflow | Greater control through adapters |
+| Portability | Harder to switch | Easier to swap providers |
+| Data ownership | More fragmented | Centralized app logic |
+| Customization | Often constrained | Built for Razex sales motion |
 
-### Stage 2: Add real calling
+## Repository Structure
 
-1. connect Twilio outbound calling
-2. expose a public webhook URL
-3. return TwiML or media-stream instructions
-4. connect OpenAI realtime speech flow
-5. store transcripts and outcomes
+```text
+apps/
+  api/
+  web/
+packages/
+  agent/
+  database/
+  shared/
+docs/
+scripts/
+```
 
-### Stage 3: Add business actions
+## API Highlights
 
-1. send qualified leads to HubSpot
-2. create booking links or direct calendar slots
-3. trigger follow-up email or WhatsApp sequences
+| Route | Purpose |
+| --- | --- |
+| `GET /health` | Service health and storage mode |
+| `GET /api/config` | Runtime provider mode summary |
+| `GET /api/dashboard` | Dashboard payload for leads and conversations |
+| `POST /leads` | Create a lead |
+| `PATCH /leads/:id` | Update a lead |
+| `POST /chat/message` | Run chat qualification flow |
+| `POST /api/calls/outbound` | Trigger outbound call flow |
+| `POST /webhooks/voice` | Voice webhook handler |
+| `GET /webhooks/whatsapp` | WhatsApp verification |
+| `POST /webhooks/whatsapp` | WhatsApp inbound processing |
+| `POST /agent/tools/book-meeting` | Book a meeting through provider adapters |
+| `POST /api/realtime/session` | Bootstrap OpenAI realtime session |
 
-### Stage 4: Make it elite
+More detail is available in [docs/api-routes.md](C:/Users/essar/OneDrive/Documents/VOICE%20AGENT%20FOR%20SALES/docs/api-routes.md:1).
 
-1. A/B test scripts
-2. score calls automatically
-3. tune trust-building language
-4. segment offers by business type
-5. build a team dashboard for operators and closers
+## Tech Stack
 
-## Local Development
+| Area | Stack |
+| --- | --- |
+| Runtime | Node.js + TypeScript |
+| API | Express |
+| Validation | Zod |
+| Frontend | Vite + TypeScript |
+| Database | PostgreSQL / Supabase |
+| AI | OpenAI Responses + Realtime |
+| Telephony | Twilio |
+| Messaging | Twilio WhatsApp, Meta Cloud API, or custom API |
+| CRM | HubSpot or custom webhook |
+| Calendar | Google Calendar, Calendly, or custom webhook |
+| Python sidecar | Optional utilities via local `.venv` |
 
-1. Copy `.env.example` to `.env`
-2. Install dependencies:
+## Environment Overview
+
+Key variables are documented in [.env.example](C:/Users/essar/OneDrive/Documents/VOICE%20AGENT%20FOR%20SALES/.env.example:1).
+
+Important groups:
+
+- `DATABASE_URL`
+- `OPENAI_API_KEY`
+- `TWILIO_*`
+- `WHATSAPP_*`
+- `GOOGLE_CALENDAR_*`
+- `HUBSPOT_ACCESS_TOKEN`
+- `CUSTOM_*` webhook fallback variables
+
+## Quick Start
+
+### 1. Install dependencies
 
 ```bash
 npm install
 ```
 
-3. Create the local Python environment for sidecar utilities:
+### 2. Create local environment files
+
+Copy `.env.example` to `.env` and add the providers you want to use.
+
+### 3. Create the Python virtual environment
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\setup_venv.ps1
 ```
 
-4. Start the API:
+### 4. Start the API
 
 ```bash
 npm run dev:api
 ```
 
-5. Start the dashboard:
+### 5. Start the dashboard
 
 ```bash
 npm run dev:web
 ```
 
-6. Open the dashboard at `http://localhost:5173`
+### 6. Build the project
 
-## Provider Modes
+```bash
+npm run build
+```
 
-The backend is environment-driven:
+### 7. Typecheck the project
 
-- Storage:
-  - `DATABASE_URL` set: Postgres or Supabase
-  - `DATABASE_URL` missing: memory fallback
-- AI:
-  - `OPENAI_API_KEY` set: real OpenAI responses and realtime session bootstrap
-  - `OPENAI_API_KEY` missing: heuristic fallback
-- WhatsApp:
-  - `WHATSAPP_PROVIDER=twilio`
-  - `WHATSAPP_PROVIDER=meta`
-  - `WHATSAPP_PROVIDER=custom`
-- Calendar:
-  - `CALENDAR_PROVIDER=google`
-  - `CALENDAR_PROVIDER=calendly`
-  - `CALENDAR_PROVIDER=custom`
-  - `CALENDAR_PROVIDER=none`
-- CRM:
-  - `CRM_PROVIDER=hubspot`
-  - `CRM_PROVIDER=custom`
-  - `CRM_PROVIDER=none`
+```bash
+npm run typecheck
+```
 
-## Important Files
+## Supabase / Postgres Setup
 
-- [apps/api/src/index.ts](C:/Users/essar/OneDrive/Documents/VOICE%20AGENT%20FOR%20SALES/apps/api/src/index.ts:1)
-- [packages/agent/src/index.ts](C:/Users/essar/OneDrive/Documents/VOICE%20AGENT%20FOR%20SALES/packages/agent/src/index.ts:1)
-- [packages/shared/src/schemas.ts](C:/Users/essar/OneDrive/Documents/VOICE%20AGENT%20FOR%20SALES/packages/shared/src/schemas.ts:1)
-- [docs/architecture.md](C:/Users/essar/OneDrive/Documents/VOICE%20AGENT%20FOR%20SALES/docs/architecture.md:1)
-- [docs/api-routes.md](C:/Users/essar/OneDrive/Documents/VOICE%20AGENT%20FOR%20SALES/docs/api-routes.md:1)
-- [docs/implementation-roadmap.md](C:/Users/essar/OneDrive/Documents/VOICE%20AGENT%20FOR%20SALES/docs/implementation-roadmap.md:1)
-- [docs/sales-playbook.md](C:/Users/essar/OneDrive/Documents/VOICE%20AGENT%20FOR%20SALES/docs/sales-playbook.md:1)
-- [docs/supabase-schema.sql](C:/Users/essar/OneDrive/Documents/VOICE%20AGENT%20FOR%20SALES/docs/supabase-schema.sql:1)
+If you want persistence:
 
-## What I Recommend Next
+1. Create a Supabase project or any Postgres database.
+2. Apply [docs/supabase-schema.sql](C:/Users/essar/OneDrive/Documents/VOICE%20AGENT%20FOR%20SALES/docs/supabase-schema.sql:1).
+3. Set `DATABASE_URL` in `.env`.
+4. Restart the API.
 
-The highest-value next move is to connect real credentials and move from mocked provider behavior into live operations:
+If `DATABASE_URL` is missing, the app falls back to in-memory storage for local development.
 
-1. Supabase project and `DATABASE_URL`
-2. OpenAI API key
-3. Twilio voice number and WhatsApp channel
-4. Google Calendar or Calendly
-5. HubSpot or your own CRM webhook
+## Roadmap
 
-That is the shortest path from this codebase to real appointment generation.
+### Near term
+
+- connect real Supabase project
+- connect real OpenAI API key
+- connect Twilio voice number
+- connect WhatsApp provider of choice
+- connect Google Calendar or Calendly
+- connect HubSpot or custom CRM webhook
+
+### Mid term
+
+- conversation analytics
+- campaign scoring
+- transcript evaluation
+- operator workflows
+- multi-client tenancy
+
+### Long term
+
+- cross-channel memory
+- richer outbound campaign tooling
+- channel expansion beyond phone and WhatsApp
+- deeper human closer workflow support
+
+## Documentation
+
+| File | Purpose |
+| --- | --- |
+| [docs/architecture.md](C:/Users/essar/OneDrive/Documents/VOICE%20AGENT%20FOR%20SALES/docs/architecture.md:1) | Technical architecture |
+| [docs/api-routes.md](C:/Users/essar/OneDrive/Documents/VOICE%20AGENT%20FOR%20SALES/docs/api-routes.md:1) | Route and provider overview |
+| [docs/implementation-roadmap.md](C:/Users/essar/OneDrive/Documents/VOICE%20AGENT%20FOR%20SALES/docs/implementation-roadmap.md:1) | Build priorities and cost strategy |
+| [docs/sales-playbook.md](C:/Users/essar/OneDrive/Documents/VOICE%20AGENT%20FOR%20SALES/docs/sales-playbook.md:1) | Sales framing and qualification approach |
+| [docs/supabase-schema.sql](C:/Users/essar/OneDrive/Documents/VOICE%20AGENT%20FOR%20SALES/docs/supabase-schema.sql:1) | Database schema bootstrap |
+
+## Contributing
+
+Please read [CONTRIBUTING.md](C:/Users/essar/OneDrive/Documents/VOICE%20AGENT%20FOR%20SALES/CONTRIBUTING.md:1) before opening large changes or provider integrations.
+
+## Courses / Learning Path
+
+If someone new joins the project, this is the recommended onboarding sequence:
+
+| Order | Focus |
+| --- | --- |
+| 1 | Read this README end to end |
+| 2 | Read the architecture and roadmap docs |
+| 3 | Understand the lead and conversation schemas |
+| 4 | Learn the provider adapter model |
+| 5 | Run the API in memory mode |
+| 6 | Connect a real Postgres or Supabase instance |
+| 7 | Connect one real channel at a time |
+
+## License
+
+This repository currently uses a **proprietary, all-rights-reserved** license suitable for a commercial product in active development. See [LICENSE](C:/Users/essar/OneDrive/Documents/VOICE%20AGENT%20FOR%20SALES/LICENSE:1).
+
+If you want to open-source AI-VSA later, the license can be switched to MIT, Apache-2.0, or another model.
+
+## Contact / Ownership
+
+Built for **Razex Solutions** as the foundation for an internal AI sales assistant and a future client-facing platform.
