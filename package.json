@@ -1,0 +1,19 @@
+{
+  "name": "ai-vsa",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build -w @ai-vsa/shared && npm run build -w @ai-vsa/database && npm run build -w @ai-vsa/agent && npm run build -w @ai-vsa/api && npm run build -w @ai-vsa/web",
+    "dev:api": "npm run build -w @ai-vsa/shared && npm run build -w @ai-vsa/agent && npm run build -w @ai-vsa/database && npm run dev -w @ai-vsa/api",
+    "dev:web": "npm run dev -w @ai-vsa/web",
+    "lint": "npm run lint --workspaces --if-present",
+    "typecheck": "npm run typecheck -w @ai-vsa/shared && npm run typecheck -w @ai-vsa/database && npm run typecheck -w @ai-vsa/agent && npm run typecheck -w @ai-vsa/api && npm run typecheck -w @ai-vsa/web"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.2"
+  }
+}

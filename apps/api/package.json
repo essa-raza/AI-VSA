@@ -1,0 +1,26 @@
+{
+  "name": "@ai-vsa/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx watch src/index.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@ai-vsa/agent": "0.1.0",
+    "@ai-vsa/database": "0.1.0",
+    "@ai-vsa/shared": "0.1.0",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.2",
+    "express": "^5.1.0",
+    "zod": "^4.1.5"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.3",
+    "@types/node": "^24.3.0",
+    "tsx": "^4.20.5"
+  }
+}
