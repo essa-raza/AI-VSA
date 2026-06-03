@@ -190,7 +190,7 @@ ai-vsa/
 ├── docs/                       # Architecture & implementation docs
 ├── scripts/                    # Setup & utility scripts
 ├── .env.example               # Environment template
-└── LICENSE                     # Proprietary license
+└── LICENSE                     # MIT License
 ```
 
 ---
@@ -371,9 +371,7 @@ If someone new joins the project, this is the recommended onboarding sequence:
 
 ## 📜 License
 
-This repository currently uses a **proprietary, all-rights-reserved** license suitable for a commercial product in active development. See [LICENSE](./LICENSE).
-
-If you want to open-source AI-VSA later, the license can be switched to MIT, Apache-2.0, or another model.
+This repository is licensed under the **MIT License**. See [LICENSE](./LICENSE) for details.
 
 ---
 
