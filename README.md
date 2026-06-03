@@ -418,4 +418,4 @@ Built for **Razex Solutions** as the foundation for an internal AI sales assista
 
 ---
 
-**Made with ❤️ for Razex Solutions**
+**Made with ❤️ by Razex Solutions**
