@@ -114,9 +114,10 @@ export async function createApp() {
   });
 
   app.get("/api/dashboard", async (_req, res) => {
-    const [leads, conversations] = await Promise.all([
+    const [leads, conversations, handoffs] = await Promise.all([
       services.repository.listLeads(),
-      services.repository.listConversations()
+      services.repository.listConversations(),
+      services.repository.listHandoffs()
     ]);
 
     const conversationCards = await Promise.all(
@@ -137,10 +138,73 @@ export async function createApp() {
       summary: {
         totalLeads: leads.length,
         qualifiedLeads: leads.filter((lead) => lead.status === "qualified" || lead.status === "booked").length,
-        needsHuman: leads.filter((lead) => lead.status === "needs_human").length
+        needsHuman: leads.filter((lead) => lead.status === "needs_human").length,
+        openHandoffs: handoffs.filter((handoff) => handoff.status !== "resolved").length
       },
       leads,
-      conversations: conversationCards
+      conversations: conversationCards,
+      handoffs
+    });
+  });
+
+  app.get("/api/handoffs", async (_req, res) => {
+    const handoffs = await services.repository.listHandoffs();
+    const payload = await Promise.all(
+      handoffs.map(async (handoff) => ({
+        ...handoff,
+        lead: await services.repository.getLead(handoff.leadId),
+        conversation: await services.repository.getConversation(handoff.conversationId)
+      }))
+    );
+
+    res.json(payload);
+  });
+
+  app.get("/api/handoffs/:id", async (req, res) => {
+    const handoff = await services.repository.getHandoff(req.params.id);
+
+    if (!handoff) {
+      return res.status(404).json({ error: "Handoff not found" });
+    }
+
+    const [lead, conversation, messages] = await Promise.all([
+      services.repository.getLead(handoff.leadId),
+      services.repository.getConversation(handoff.conversationId),
+      services.repository.getConversationMessages(handoff.conversationId)
+    ]);
+
+    res.json({ handoff, lead, conversation, messages });
+  });
+
+  app.patch("/api/handoffs/:id", async (req, res) => {
+    const status = typeof req.body.status === "string" ? req.body.status : undefined;
+    const assignedTo = typeof req.body.assignedTo === "string" ? req.body.assignedTo : undefined;
+
+    if (status && !["open", "assigned", "resolved"].includes(status)) {
+      return res.status(400).json({ error: "Invalid handoff status" });
+    }
+
+    const handoff = await services.repository.updateHandoff(req.params.id, {
+      status: status as "open" | "assigned" | "resolved" | undefined,
+      assignedTo,
+      resolvedAt: status === "resolved" ? new Date().toISOString() : undefined
+    });
+
+    if (!handoff) {
+      return res.status(404).json({ error: "Handoff not found" });
+    }
+
+    if (handoff.status === "resolved") {
+      await services.repository.updateLead(handoff.leadId, { status: "contacted" });
+      await services.repository.saveConversationSummary(handoff.conversationId, "Human handoff resolved.", false);
+    } else if (handoff.status === "assigned") {
+      await services.repository.updateLead(handoff.leadId, { assignedTo: handoff.assignedTo, status: "needs_human" });
+    }
+
+    res.json({
+      handoff,
+      lead: await services.repository.getLead(handoff.leadId),
+      conversation: await services.repository.getConversation(handoff.conversationId)
     });
   });
 
