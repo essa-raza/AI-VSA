@@ -178,6 +178,30 @@ export async function createApp() {
     res.json(buildConversationAnalysis(lead, messages));
   });
 
+  app.get("/api/conversations/:id/workspace", async (req, res) => {
+    const conversation = await services.repository.getConversation(req.params.id);
+    if (!conversation) return res.status(404).json({ error: "Conversation not found" });
+    const [lead, messages, handoffs] = await Promise.all([services.repository.getLead(conversation.leadId), services.repository.getConversationMessages(conversation.id), services.repository.listHandoffs()]);
+    const analysis = buildConversationAnalysis(lead, messages);
+    const activeHandoff = handoffs.find((handoff) => handoff.conversationId === conversation.id && handoff.status !== "resolved") ?? null;
+    res.json({
+      conversation,
+      lead,
+      messages,
+      analysis,
+      activeHandoff,
+      workspace: {
+        headline: lead?.company || lead?.name || "Unknown lead",
+        stage: lead?.status ?? "unknown",
+        owner: activeHandoff?.assignedTo || lead?.assignedTo || "unassigned",
+        primaryAction: activeHandoff ? "Resolve or reassign the active handoff." : analysis.recommendedAction,
+        nextActions: buildWorkspaceActions(Boolean(activeHandoff), analysis.intent, analysis.dealRiskScore),
+        crmSyncRecommended: Boolean(lead),
+        bookingRecommended: analysis.intent === "booking ready" || analysis.urgencyScore >= 75
+      }
+    });
+  });
+
   app.post("/chat/message", async (req, res) => {
     const parsed = chatMessageRequestSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: "Invalid chat payload", details: parsed.error.flatten() });
@@ -300,29 +324,23 @@ async function safeCrmSync(services: AppServices, lead: NonNullable<Awaited<Retu
   try { await services.crm.syncLead(lead); } catch {}
 }
 
+function buildWorkspaceActions(hasHandoff: boolean, intent: string, risk: number) {
+  if (hasHandoff) return ["Assign a closer", "Review transcript", "Send personal reply", "Resolve handoff"];
+  if (intent === "booking ready") return ["Offer two meeting times", "Book meeting", "Sync CRM", "Send confirmation"];
+  if (risk >= 70) return ["Escalate to human", "Address objections", "Share proof", "Ask for timeline"];
+  return ["Ask next qualifier", "Summarize needs", "Score fit", "Push toward booking"];
+}
+
 function buildConversationAnalysis(lead: Lead | null, messages: Message[]) {
   const leadMessages = messages.filter((message) => message.sender === "lead").map((message) => message.content);
   const allLeadText = leadMessages.join(" ").toLowerCase();
-  const allText = messages.map((message) => message.content).join(" ").toLowerCase();
   const objections = detectMatches(allLeadText, ["price", "cost", "expensive", "budget", "later", "not now", "already", "competitor", "contract", "approval"]);
   const buyingSignals = detectMatches(allLeadText, ["book", "schedule", "demo", "call", "interested", "need", "urgent", "soon", "start", "proposal", "quote"]);
   const sentiment = objections.length > buyingSignals.length ? "cautious" : buyingSignals.length > 0 ? "positive" : "neutral";
   const urgencyScore = clamp((lead?.score ?? 0) + buyingSignals.length * 10 - objections.length * 5, 0, 100);
   const dealRiskScore = clamp(100 - urgencyScore + objections.length * 8 + (messages.length < 3 ? 15 : 0), 0, 100);
   const intent = buyingSignals.includes("book") || buyingSignals.includes("schedule") || buyingSignals.includes("demo") ? "booking ready" : buyingSignals.length > 0 ? "interested" : objections.length > 0 ? "needs reassurance" : "discovery needed";
-  return {
-    lead,
-    transcriptLength: messages.length,
-    intent,
-    sentiment,
-    urgencyScore,
-    dealRiskScore,
-    buyingSignals,
-    objections,
-    recommendedAction: buildConversationNextAction(intent, dealRiskScore),
-    closerBrief: buildCloserBrief(lead, intent, objections, buyingSignals),
-    summary: messages.length === 0 ? "No transcript is available yet." : `Conversation has ${messages.length} messages. Lead appears ${sentiment} with ${buyingSignals.length} buying signal${buyingSignals.length === 1 ? "" : "s"} and ${objections.length} objection marker${objections.length === 1 ? "" : "s"}.`
-  };
+  return { lead, transcriptLength: messages.length, intent, sentiment, urgencyScore, dealRiskScore, buyingSignals, objections, recommendedAction: buildConversationNextAction(intent, dealRiskScore), closerBrief: buildCloserBrief(lead, intent, objections, buyingSignals), summary: messages.length === 0 ? "No transcript is available yet." : `Conversation has ${messages.length} messages. Lead appears ${sentiment} with ${buyingSignals.length} buying signal${buyingSignals.length === 1 ? "" : "s"} and ${objections.length} objection marker${objections.length === 1 ? "" : "s"}.` };
 }
 
 function buildConversationNextAction(intent: string, risk: number) {
