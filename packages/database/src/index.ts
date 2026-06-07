@@ -18,6 +18,12 @@ export type DatabaseConfig = {
   databaseUrl?: string;
 };
 
+export type HandoffUpdateInput = {
+  status?: HumanHandoff["status"];
+  assignedTo?: string;
+  resolvedAt?: string;
+};
+
 export type Repository = {
   close(): Promise<void>;
   listLeads(): Promise<Lead[]>;
@@ -32,7 +38,10 @@ export type Repository = {
   getConversationMessages(conversationId: string): Promise<Message[]>;
   saveConversationSummary(conversationId: string, summary: string, handoffRequired: boolean): Promise<Conversation | null>;
   createBooking(input: BookingRequest & { calendarEventId?: string; status?: Booking["status"] }): Promise<Booking>;
+  listHandoffs(): Promise<HumanHandoff[]>;
+  getHandoff(id: string): Promise<HumanHandoff | null>;
   createHandoff(input: HandoffRequest): Promise<HumanHandoff>;
+  updateHandoff(id: string, input: HandoffUpdateInput): Promise<HumanHandoff | null>;
   createVoiceCall(input: Omit<VoiceCall, "id" | "createdAt">): Promise<VoiceCall>;
 };
 
@@ -226,6 +235,20 @@ class MemoryRepository implements Repository {
     return booking;
   }
 
+  async listHandoffs() {
+    return [...this.handoffs.values()].sort((a, b) => {
+      if (a.status !== b.status) {
+        return a.status === "resolved" ? 1 : -1;
+      }
+
+      return b.createdAt.localeCompare(a.createdAt);
+    });
+  }
+
+  async getHandoff(id: string) {
+    return this.handoffs.get(id) ?? null;
+  }
+
   async createHandoff(input: HandoffRequest) {
     const handoff: HumanHandoff = {
       id: createId("handoff"),
@@ -233,7 +256,7 @@ class MemoryRepository implements Repository {
       conversationId: input.conversationId,
       reason: input.reason,
       priority: input.priority,
-      status: "open",
+      status: input.assignedTo ? "assigned" : "open",
       assignedTo: input.assignedTo,
       createdAt: new Date().toISOString(),
       resolvedAt: ""
@@ -241,6 +264,25 @@ class MemoryRepository implements Repository {
 
     this.handoffs.set(handoff.id, handoff);
     return handoff;
+  }
+
+  async updateHandoff(id: string, input: HandoffUpdateInput) {
+    const current = this.handoffs.get(id);
+
+    if (!current) {
+      return null;
+    }
+
+    const updated: HumanHandoff = {
+      ...current,
+      ...input,
+      status: input.status ?? (input.assignedTo ? "assigned" : current.status),
+      assignedTo: input.assignedTo?.trim() ?? current.assignedTo,
+      resolvedAt: input.status === "resolved" ? input.resolvedAt ?? new Date().toISOString() : current.resolvedAt
+    };
+
+    this.handoffs.set(id, updated);
+    return updated;
   }
 
   async createVoiceCall(input: Omit<VoiceCall, "id" | "createdAt">) {
@@ -354,6 +396,7 @@ class PostgresRepository implements Repository {
       create index if not exists idx_leads_phone on leads(phone);
       create index if not exists idx_conversations_lead_id on conversations(lead_id);
       create index if not exists idx_messages_conversation_id on messages(conversation_id);
+      create index if not exists idx_handoffs_status on human_handoffs(status);
     `);
   }
 
@@ -582,15 +625,60 @@ class PostgresRepository implements Repository {
     return mapBookingRow(result.rows[0]);
   }
 
+  async listHandoffs() {
+    const result = await this.pool.query(`
+      select * from human_handoffs
+      order by
+        case status when 'open' then 0 when 'assigned' then 1 else 2 end,
+        created_at desc
+    `);
+    return result.rows.map(mapHandoffRow);
+  }
+
+  async getHandoff(id: string) {
+    const result = await this.pool.query("select * from human_handoffs where id = $1 limit 1", [id]);
+    return result.rows[0] ? mapHandoffRow(result.rows[0]) : null;
+  }
+
   async createHandoff(input: HandoffRequest) {
     const result = await this.pool.query(
       `insert into human_handoffs (id, lead_id, conversation_id, reason, priority, status, assigned_to)
-       values ($1, $2, $3, $4, $5, 'open', $6)
+       values ($1, $2, $3, $4, $5, $6, $7)
        returning *`,
-      [createId("handoff"), input.leadId, input.conversationId, input.reason, input.priority, input.assignedTo]
+      [
+        createId("handoff"),
+        input.leadId,
+        input.conversationId,
+        input.reason,
+        input.priority,
+        input.assignedTo ? "assigned" : "open",
+        input.assignedTo
+      ]
     );
 
     return mapHandoffRow(result.rows[0]);
+  }
+
+  async updateHandoff(id: string, input: HandoffUpdateInput) {
+    const current = await this.getHandoff(id);
+
+    if (!current) {
+      return null;
+    }
+
+    const status = input.status ?? (input.assignedTo ? "assigned" : current.status);
+    const resolvedAt = status === "resolved" ? input.resolvedAt ?? new Date().toISOString() : current.resolvedAt;
+    const assignedTo = input.assignedTo?.trim() ?? current.assignedTo;
+
+    const result = await this.pool.query(
+      `update human_handoffs
+       set status = $2, assigned_to = $3, resolved_at = $4
+       where id = $1
+       returning *`,
+      [id, status, assignedTo, resolvedAt || null]
+    );
+
+    return result.rows[0] ? mapHandoffRow(result.rows[0]) : null;
   }
 
   async createVoiceCall(input: Omit<VoiceCall, "id" | "createdAt">) {
@@ -711,7 +799,7 @@ function mapVoiceCallRow(row: Record<string, unknown>): VoiceCall {
     conversationId: String(row.conversation_id),
     provider: String(row.provider),
     providerCallId: String(row.provider_call_id ?? ""),
-    phoneNumber: String(row.phone_number),
+    phoneNumber: String(row.phone_number ?? ""),
     direction: row.direction as VoiceCall["direction"],
     status: String(row.status),
     transcript: String(row.transcript ?? ""),
