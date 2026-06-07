@@ -184,22 +184,7 @@ export async function createApp() {
     const [lead, messages, handoffs] = await Promise.all([services.repository.getLead(conversation.leadId), services.repository.getConversationMessages(conversation.id), services.repository.listHandoffs()]);
     const analysis = buildConversationAnalysis(lead, messages);
     const activeHandoff = handoffs.find((handoff) => handoff.conversationId === conversation.id && handoff.status !== "resolved") ?? null;
-    res.json({
-      conversation,
-      lead,
-      messages,
-      analysis,
-      activeHandoff,
-      workspace: {
-        headline: lead?.company || lead?.name || "Unknown lead",
-        stage: lead?.status ?? "unknown",
-        owner: activeHandoff?.assignedTo || lead?.assignedTo || "unassigned",
-        primaryAction: activeHandoff ? "Resolve or reassign the active handoff." : analysis.recommendedAction,
-        nextActions: buildWorkspaceActions(Boolean(activeHandoff), analysis.intent, analysis.dealRiskScore),
-        crmSyncRecommended: Boolean(lead),
-        bookingRecommended: analysis.intent === "booking ready" || analysis.urgencyScore >= 75
-      }
-    });
+    res.json({ conversation, lead, messages, analysis, activeHandoff, workspace: { headline: lead?.company || lead?.name || "Unknown lead", stage: lead?.status ?? "unknown", owner: activeHandoff?.assignedTo || lead?.assignedTo || "unassigned", primaryAction: activeHandoff ? "Resolve or reassign the active handoff." : analysis.recommendedAction, nextActions: buildWorkspaceActions(Boolean(activeHandoff), analysis.intent, analysis.dealRiskScore), crmSyncRecommended: Boolean(lead), bookingRecommended: analysis.intent === "booking ready" || analysis.urgencyScore >= 75 } });
   });
 
   app.post("/chat/message", async (req, res) => {
@@ -340,7 +325,37 @@ function buildConversationAnalysis(lead: Lead | null, messages: Message[]) {
   const urgencyScore = clamp((lead?.score ?? 0) + buyingSignals.length * 10 - objections.length * 5, 0, 100);
   const dealRiskScore = clamp(100 - urgencyScore + objections.length * 8 + (messages.length < 3 ? 15 : 0), 0, 100);
   const intent = buyingSignals.includes("book") || buyingSignals.includes("schedule") || buyingSignals.includes("demo") ? "booking ready" : buyingSignals.length > 0 ? "interested" : objections.length > 0 ? "needs reassurance" : "discovery needed";
-  return { lead, transcriptLength: messages.length, intent, sentiment, urgencyScore, dealRiskScore, buyingSignals, objections, recommendedAction: buildConversationNextAction(intent, dealRiskScore), closerBrief: buildCloserBrief(lead, intent, objections, buyingSignals), summary: messages.length === 0 ? "No transcript is available yet." : `Conversation has ${messages.length} messages. Lead appears ${sentiment} with ${buyingSignals.length} buying signal${buyingSignals.length === 1 ? "" : "s"} and ${objections.length} objection marker${objections.length === 1 ? "" : "s"}.` };
+  const council = buildSalesCouncil(lead, messages.length, intent, urgencyScore, dealRiskScore, objections, buyingSignals);
+  return { lead, transcriptLength: messages.length, intent, sentiment, urgencyScore, dealRiskScore, buyingSignals, objections, council, recommendedAction: buildConversationNextAction(intent, dealRiskScore), closerBrief: buildCloserBrief(lead, intent, objections, buyingSignals), summary: messages.length === 0 ? "No transcript is available yet." : `Conversation has ${messages.length} messages. Lead appears ${sentiment} with ${buyingSignals.length} buying signal${buyingSignals.length === 1 ? "" : "s"} and ${objections.length} objection marker${objections.length === 1 ? "" : "s"}.` };
+}
+
+function buildSalesCouncil(lead: Lead | null, transcriptLength: number, intent: string, urgencyScore: number, dealRiskScore: number, objections: string[], buyingSignals: string[]) {
+  return {
+    qualificationAgent: {
+      verdict: (lead?.score ?? 0) >= 75 ? "qualified" : (lead?.score ?? 0) >= 45 ? "needs more discovery" : "low information",
+      confidence: clamp((lead?.score ?? 0) + transcriptLength * 3, 20, 95),
+      rationale: lead ? `Lead score is ${lead.score} with status ${lead.status}.` : "No lead profile is attached yet.",
+      nextStep: "Confirm pain, timeline, budget, and decision authority."
+    },
+    objectionAgent: {
+      verdict: objections.length ? "objections detected" : "no major objection detected",
+      confidence: objections.length ? 85 : 62,
+      rationale: objections.length ? `Detected concern markers: ${objections.join(", ")}.` : "The transcript does not contain strong price, timing, competitor, or approval concerns.",
+      nextStep: objections.length ? "Respond with proof, ROI framing, and one simple next step." : "Keep momentum and avoid over explaining."
+    },
+    closerAgent: {
+      verdict: intent,
+      confidence: clamp(urgencyScore, 35, 95),
+      rationale: buyingSignals.length ? `Buying signals found: ${buyingSignals.join(", ")}.` : "The lead has not shown strong booking or proposal intent yet.",
+      nextStep: buildConversationNextAction(intent, dealRiskScore)
+    },
+    complianceAgent: {
+      verdict: dealRiskScore >= 75 ? "human review recommended" : "safe to continue",
+      confidence: dealRiskScore >= 75 ? 82 : 70,
+      rationale: dealRiskScore >= 75 ? "Risk is high enough that a human should review before aggressive follow up." : "No major compliance or escalation issue is visible from lightweight signals.",
+      nextStep: dealRiskScore >= 75 ? "Escalate to a human closer before sending automated follow up." : "Continue with standard sales workflow."
+    }
+  };
 }
 
 function buildConversationNextAction(intent: string, risk: number) {
@@ -359,74 +374,12 @@ function buildCloserBrief(lead: Lead | null, intent: string, objections: string[
   return `${name}${company} is currently classified as ${intent}.${signalText}${objectionText}`;
 }
 
-function detectMatches(text: string, terms: string[]) {
-  return [...new Set(terms.filter((term) => text.includes(term)))];
-}
-
-function groupBySource(leads: NonNullable<Awaited<ReturnType<AppServices["repository"]["listLeads"]>>>) {
-  const groups = new Map<string, { source: string; leads: number; qualified: number; booked: number; averageScore: number; totalScore: number }>();
-  for (const lead of leads) {
-    const current = groups.get(lead.source) ?? { source: lead.source, leads: 0, qualified: 0, booked: 0, averageScore: 0, totalScore: 0 };
-    current.leads += 1;
-    current.totalScore += lead.score;
-    if (["qualified", "booked", "proposal_sent", "won"].includes(lead.status)) current.qualified += 1;
-    if (["booked", "proposal_sent", "won"].includes(lead.status)) current.booked += 1;
-    current.averageScore = Math.round(current.totalScore / current.leads);
-    groups.set(lead.source, current);
-  }
-  return [...groups.values()].map(({ totalScore: _totalScore, ...group }) => ({ ...group, qualificationRate: rate(group.qualified, group.leads), bookingRate: rate(group.booked, group.leads) })).sort((a, b) => b.leads - a.leads);
-}
-
-function groupByChannel(conversations: NonNullable<Awaited<ReturnType<AppServices["repository"]["listConversations"]>>>) {
-  const groups = new Map<string, { channel: string; conversations: number; handoffRequired: number }>();
-  for (const conversation of conversations) {
-    const current = groups.get(conversation.channel) ?? { channel: conversation.channel, conversations: 0, handoffRequired: 0 };
-    current.conversations += 1;
-    if (conversation.handoffRequired) current.handoffRequired += 1;
-    groups.set(conversation.channel, current);
-  }
-  return [...groups.values()].map((group) => ({ ...group, handoffRate: rate(group.handoffRequired, group.conversations) })).sort((a, b) => b.conversations - a.conversations);
-}
-
-function groupHandoffs(handoffs: NonNullable<Awaited<ReturnType<AppServices["repository"]["listHandoffs"]>>>) {
-  return { open: handoffs.filter((handoff) => handoff.status === "open").length, assigned: handoffs.filter((handoff) => handoff.status === "assigned").length, resolved: handoffs.filter((handoff) => handoff.status === "resolved").length, highPriority: handoffs.filter((handoff) => handoff.priority === "high" && handoff.status !== "resolved").length };
-}
-
-function buildAnalyticsRecommendations(totalLeads: number, qualified: number, booked: number, activeHandoffs: number) {
-  const recommendations: string[] = [];
-  if (totalLeads === 0) recommendations.push("Seed demo leads or connect the first live channel to validate the dashboard.");
-  if (totalLeads > 0 && qualified === 0) recommendations.push("Tighten qualification questions or lead scoring because no captured leads are qualifying yet.");
-  if (qualified > 0 && booked === 0) recommendations.push("Prioritize booking automation because qualified leads are not turning into calendar events yet.");
-  if (activeHandoffs > 0) recommendations.push("Resolve active handoffs quickly to prevent hot leads from waiting on a human closer.");
-  if (recommendations.length === 0) recommendations.push("Pipeline is healthy enough for the next build step: transcript evaluation and campaign attribution.");
-  return recommendations;
-}
-
-function clamp(value: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, value));
-}
-
-function rate(part: number, total: number) {
-  return total ? Math.round((part / total) * 100) : 0;
-}
-
-function extractWhatsappSender(payload: Record<string, unknown>) {
-  const direct = String(payload.from ?? payload.phone ?? "");
-  if (direct) return direct.replace(/^whatsapp:/, "");
-  const entry = Array.isArray(payload.entry) ? payload.entry[0] as Record<string, unknown> : undefined;
-  const changes = Array.isArray(entry?.changes) ? entry.changes[0] as Record<string, unknown> : undefined;
-  const value = changes?.value as Record<string, unknown> | undefined;
-  const contacts = Array.isArray(value?.contacts) ? value.contacts[0] as Record<string, unknown> : undefined;
-  return String(contacts?.wa_id ?? "");
-}
-
-function extractWhatsappText(payload: Record<string, unknown>) {
-  const direct = String(payload.message ?? payload.text ?? "");
-  if (direct) return direct;
-  const entry = Array.isArray(payload.entry) ? payload.entry[0] as Record<string, unknown> : undefined;
-  const changes = Array.isArray(entry?.changes) ? entry.changes[0] as Record<string, unknown> : undefined;
-  const value = changes?.value as Record<string, unknown> | undefined;
-  const messages = Array.isArray(value?.messages) ? value.messages[0] as Record<string, unknown> | undefined : undefined;
-  const text = messages?.text as Record<string, unknown> | undefined;
-  return String(text?.body ?? "Hello");
-}
+function detectMatches(text: string, terms: string[]) { return [...new Set(terms.filter((term) => text.includes(term)))]; }
+function groupBySource(leads: NonNullable<Awaited<ReturnType<AppServices["repository"]["listLeads"]>>>) { const groups = new Map<string, { source: string; leads: number; qualified: number; booked: number; averageScore: number; totalScore: number }>(); for (const lead of leads) { const current = groups.get(lead.source) ?? { source: lead.source, leads: 0, qualified: 0, booked: 0, averageScore: 0, totalScore: 0 }; current.leads += 1; current.totalScore += lead.score; if (["qualified", "booked", "proposal_sent", "won"].includes(lead.status)) current.qualified += 1; if (["booked", "proposal_sent", "won"].includes(lead.status)) current.booked += 1; current.averageScore = Math.round(current.totalScore / current.leads); groups.set(lead.source, current); } return [...groups.values()].map(({ totalScore: _totalScore, ...group }) => ({ ...group, qualificationRate: rate(group.qualified, group.leads), bookingRate: rate(group.booked, group.leads) })).sort((a, b) => b.leads - a.leads); }
+function groupByChannel(conversations: NonNullable<Awaited<ReturnType<AppServices["repository"]["listConversations"]>>>) { const groups = new Map<string, { channel: string; conversations: number; handoffRequired: number }>(); for (const conversation of conversations) { const current = groups.get(conversation.channel) ?? { channel: conversation.channel, conversations: 0, handoffRequired: 0 }; current.conversations += 1; if (conversation.handoffRequired) current.handoffRequired += 1; groups.set(conversation.channel, current); } return [...groups.values()].map((group) => ({ ...group, handoffRate: rate(group.handoffRequired, group.conversations) })).sort((a, b) => b.conversations - a.conversations); }
+function groupHandoffs(handoffs: NonNullable<Awaited<ReturnType<AppServices["repository"]["listHandoffs"]>>>) { return { open: handoffs.filter((handoff) => handoff.status === "open").length, assigned: handoffs.filter((handoff) => handoff.status === "assigned").length, resolved: handoffs.filter((handoff) => handoff.status === "resolved").length, highPriority: handoffs.filter((handoff) => handoff.priority === "high" && handoff.status !== "resolved").length }; }
+function buildAnalyticsRecommendations(totalLeads: number, qualified: number, booked: number, activeHandoffs: number) { const recommendations: string[] = []; if (totalLeads === 0) recommendations.push("Seed demo leads or connect the first live channel to validate the dashboard."); if (totalLeads > 0 && qualified === 0) recommendations.push("Tighten qualification questions or lead scoring because no captured leads are qualifying yet."); if (qualified > 0 && booked === 0) recommendations.push("Prioritize booking automation because qualified leads are not turning into calendar events yet."); if (activeHandoffs > 0) recommendations.push("Resolve active handoffs quickly to prevent hot leads from waiting on a human closer."); if (recommendations.length === 0) recommendations.push("Pipeline is healthy enough for the next build step: transcript evaluation and campaign attribution."); return recommendations; }
+function clamp(value: number, min: number, max: number) { return Math.max(min, Math.min(max, value)); }
+function rate(part: number, total: number) { return total ? Math.round((part / total) * 100) : 0; }
+function extractWhatsappSender(payload: Record<string, unknown>) { const direct = String(payload.from ?? payload.phone ?? ""); if (direct) return direct.replace(/^whatsapp:/, ""); const entry = Array.isArray(payload.entry) ? payload.entry[0] as Record<string, unknown> : undefined; const changes = Array.isArray(entry?.changes) ? entry.changes[0] as Record<string, unknown> : undefined; const value = changes?.value as Record<string, unknown> | undefined; const contacts = Array.isArray(value?.contacts) ? value.contacts[0] as Record<string, unknown> : undefined; return String(contacts?.wa_id ?? ""); }
+function extractWhatsappText(payload: Record<string, unknown>) { const direct = String(payload.message ?? payload.text ?? ""); if (direct) return direct; const entry = Array.isArray(payload.entry) ? payload.entry[0] as Record<string, unknown> : undefined; const changes = Array.isArray(entry?.changes) ? entry.changes[0] as Record<string, unknown> : undefined; const value = changes?.value as Record<string, unknown> | undefined; const messages = Array.isArray(value?.messages) ? value.messages[0] as Record<string, unknown> | undefined : undefined; const text = messages?.text as Record<string, unknown> | undefined; return String(text?.body ?? "Hello"); }
