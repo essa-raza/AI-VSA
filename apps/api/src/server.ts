@@ -66,6 +66,46 @@ export async function createApp() {
     res.json(defaultCampaign);
   });
 
+  app.get("/api/analytics", async (_req, res) => {
+    const [leads, conversations, handoffs] = await Promise.all([
+      services.repository.listLeads(),
+      services.repository.listConversations(),
+      services.repository.listHandoffs()
+    ]);
+
+    const qualifiedLeads = leads.filter((lead) => lead.status === "qualified" || lead.status === "booked" || lead.status === "proposal_sent" || lead.status === "won");
+    const bookedLeads = leads.filter((lead) => lead.status === "booked" || lead.status === "proposal_sent" || lead.status === "won");
+    const wonLeads = leads.filter((lead) => lead.status === "won");
+    const activeHandoffs = handoffs.filter((handoff) => handoff.status !== "resolved");
+
+    res.json({
+      generatedAt: new Date().toISOString(),
+      totals: {
+        leads: leads.length,
+        conversations: conversations.length,
+        qualified: qualifiedLeads.length,
+        booked: bookedLeads.length,
+        won: wonLeads.length,
+        handoffs: handoffs.length,
+        activeHandoffs: activeHandoffs.length,
+        handoffRate: rate(activeHandoffs.length, leads.length),
+        qualificationRate: rate(qualifiedLeads.length, leads.length),
+        bookingRate: rate(bookedLeads.length, leads.length),
+        averageLeadScore: leads.length ? Math.round(leads.reduce((sum, lead) => sum + lead.score, 0) / leads.length) : 0
+      },
+      funnel: [
+        { stage: "Captured", count: leads.length },
+        { stage: "Qualified", count: qualifiedLeads.length },
+        { stage: "Booked", count: bookedLeads.length },
+        { stage: "Won", count: wonLeads.length }
+      ],
+      bySource: groupBySource(leads),
+      byChannel: groupByChannel(conversations),
+      handoffPressure: groupHandoffs(handoffs),
+      recommendations: buildAnalyticsRecommendations(leads.length, qualifiedLeads.length, bookedLeads.length, activeHandoffs.length)
+    });
+  });
+
   app.post("/api/leads/preview", (req, res) => {
     const parsed = leadContextSchema.safeParse(req.body);
 
@@ -628,6 +668,84 @@ async function safeCrmSync(services: AppServices, lead: NonNullable<Awaited<Retu
   try {
     await services.crm.syncLead(lead);
   } catch {}
+}
+
+function groupBySource(leads: NonNullable<Awaited<ReturnType<AppServices["repository"]["listLeads"]>>>) {
+  const groups = new Map<string, { source: string; leads: number; qualified: number; booked: number; averageScore: number; totalScore: number }>();
+
+  for (const lead of leads) {
+    const current = groups.get(lead.source) ?? { source: lead.source, leads: 0, qualified: 0, booked: 0, averageScore: 0, totalScore: 0 };
+    current.leads += 1;
+    current.totalScore += lead.score;
+    if (["qualified", "booked", "proposal_sent", "won"].includes(lead.status)) {
+      current.qualified += 1;
+    }
+    if (["booked", "proposal_sent", "won"].includes(lead.status)) {
+      current.booked += 1;
+    }
+    current.averageScore = Math.round(current.totalScore / current.leads);
+    groups.set(lead.source, current);
+  }
+
+  return [...groups.values()]
+    .map(({ totalScore: _totalScore, ...group }) => ({ ...group, qualificationRate: rate(group.qualified, group.leads), bookingRate: rate(group.booked, group.leads) }))
+    .sort((a, b) => b.leads - a.leads);
+}
+
+function groupByChannel(conversations: NonNullable<Awaited<ReturnType<AppServices["repository"]["listConversations"]>>>) {
+  const groups = new Map<string, { channel: string; conversations: number; handoffRequired: number }>();
+
+  for (const conversation of conversations) {
+    const current = groups.get(conversation.channel) ?? { channel: conversation.channel, conversations: 0, handoffRequired: 0 };
+    current.conversations += 1;
+    if (conversation.handoffRequired) {
+      current.handoffRequired += 1;
+    }
+    groups.set(conversation.channel, current);
+  }
+
+  return [...groups.values()]
+    .map((group) => ({ ...group, handoffRate: rate(group.handoffRequired, group.conversations) }))
+    .sort((a, b) => b.conversations - a.conversations);
+}
+
+function groupHandoffs(handoffs: NonNullable<Awaited<ReturnType<AppServices["repository"]["listHandoffs"]>>>) {
+  return {
+    open: handoffs.filter((handoff) => handoff.status === "open").length,
+    assigned: handoffs.filter((handoff) => handoff.status === "assigned").length,
+    resolved: handoffs.filter((handoff) => handoff.status === "resolved").length,
+    highPriority: handoffs.filter((handoff) => handoff.priority === "high" && handoff.status !== "resolved").length
+  };
+}
+
+function buildAnalyticsRecommendations(totalLeads: number, qualified: number, booked: number, activeHandoffs: number) {
+  const recommendations: string[] = [];
+
+  if (totalLeads === 0) {
+    recommendations.push("Seed demo leads or connect the first live channel to validate the dashboard.");
+  }
+
+  if (totalLeads > 0 && qualified === 0) {
+    recommendations.push("Tighten qualification questions or lead scoring because no captured leads are qualifying yet.");
+  }
+
+  if (qualified > 0 && booked === 0) {
+    recommendations.push("Prioritize booking automation because qualified leads are not turning into calendar events yet.");
+  }
+
+  if (activeHandoffs > 0) {
+    recommendations.push("Resolve active handoffs quickly to prevent hot leads from waiting on a human closer.");
+  }
+
+  if (recommendations.length === 0) {
+    recommendations.push("Pipeline is healthy enough for the next build step: transcript evaluation and campaign attribution.");
+  }
+
+  return recommendations;
+}
+
+function rate(part: number, total: number) {
+  return total ? Math.round((part / total) * 100) : 0;
 }
 
 function extractWhatsappSender(payload: Record<string, unknown>) {
