@@ -35,6 +35,7 @@ type DashboardConversation = {
   id: string;
   channel: string;
   summary: string;
+  handoffRequired: boolean;
   updatedAt: string;
   messageCount: number;
   lastMessage: string;
@@ -49,6 +50,14 @@ type DashboardResponse = {
   };
   leads: Lead[];
   conversations: DashboardConversation[];
+};
+
+type OperatorQueueItem = {
+  lead: Lead;
+  conversation?: DashboardConversation;
+  reason: string;
+  urgency: "high" | "medium";
+  nextAction: string;
 };
 
 const root = document.querySelector<HTMLDivElement>("#app");
@@ -87,10 +96,21 @@ root.innerHTML = `
         <span class="label">Qualified</span>
         <strong id="qualified-leads">0</strong>
       </article>
-      <article class="panel stat-card">
+      <article class="panel stat-card urgent-stat">
         <span class="label">Needs Human</span>
         <strong id="needs-human">0</strong>
       </article>
+    </section>
+
+    <section class="panel operator-panel">
+      <div class="section-head">
+        <div>
+          <span class="label">Operator Queue</span>
+          <h2>Human handoff center</h2>
+        </div>
+        <p class="micro" id="queue-summary">Loading handoff queue...</p>
+      </div>
+      <div id="operator-queue" class="queue-grid"></div>
     </section>
 
     <section class="grid">
@@ -197,9 +217,91 @@ async function boot() {
     document.querySelector("#provider-modes"),
     Object.entries(config.providerModes).map(([key, value]) => `${key}: ${value}`)
   );
+  renderOperatorQueue(buildOperatorQueue(dashboard));
   renderLeads(dashboard.leads);
   renderConversations(dashboard.conversations);
   wireLeadForm();
+}
+
+function buildOperatorQueue(dashboard: DashboardResponse): OperatorQueueItem[] {
+  const conversationsByLead = new Map(
+    dashboard.conversations
+      .filter((conversation) => conversation.lead)
+      .map((conversation) => [conversation.lead!.id, conversation])
+  );
+
+  return dashboard.leads
+    .filter((lead) => lead.status === "needs_human" || lead.score >= 75)
+    .map((lead) => {
+      const conversation = conversationsByLead.get(lead.id);
+      const needsHuman = lead.status === "needs_human" || conversation?.handoffRequired;
+
+      return {
+        lead,
+        conversation,
+        urgency: needsHuman ? "high" : "medium",
+        reason: needsHuman
+          ? conversation?.summary || lead.summary || "AI flagged this lead for human review."
+          : lead.summary || "High fit lead is ready for a closer follow up.",
+        nextAction: needsHuman
+          ? "Review transcript, assign a closer, and reply personally."
+          : "Confirm fit, send booking link, or move to proposal."
+      };
+    })
+    .sort((a, b) => {
+      if (a.urgency !== b.urgency) {
+        return a.urgency === "high" ? -1 : 1;
+      }
+
+      return b.lead.score - a.lead.score;
+    });
+}
+
+function renderOperatorQueue(items: OperatorQueueItem[]) {
+  const grid = document.querySelector<HTMLElement>("#operator-queue");
+  const summary = document.querySelector<HTMLElement>("#queue-summary");
+
+  if (!grid) {
+    return;
+  }
+
+  if (summary) {
+    const highPriorityCount = items.filter((item) => item.urgency === "high").length;
+    summary.textContent = items.length === 0
+      ? "No urgent operator work right now."
+      : `${items.length} active item${items.length === 1 ? "" : "s"}, ${highPriorityCount} high priority`;
+  }
+
+  if (items.length === 0) {
+    grid.innerHTML = `
+      <article class="queue-card empty-state">
+        <span class="label">Clear</span>
+        <h3>No human handoffs yet</h3>
+        <p>When a lead needs a closer, asks for sensitive help, or scores highly, it will appear here.</p>
+      </article>
+    `;
+    return;
+  }
+
+  grid.innerHTML = items
+    .slice(0, 6)
+    .map((item) => `
+      <article class="queue-card ${item.urgency === "high" ? "priority-high" : "priority-medium"}">
+        <div class="queue-topline">
+          <span class="status-pill">${escapeHtml(item.urgency)} priority</span>
+          <span class="micro">Score ${item.lead.score}</span>
+        </div>
+        <h3>${escapeHtml(item.lead.company || item.lead.name || "Unknown lead")}</h3>
+        <p>${escapeHtml(item.reason)}</p>
+        <div class="queue-meta">
+          <span>${escapeHtml(item.lead.source)}</span>
+          <span>${escapeHtml(item.conversation?.channel ?? "no conversation")}</span>
+          <span>${item.conversation ? `${item.conversation.messageCount} messages` : "lead only"}</span>
+        </div>
+        <strong class="next-action">${escapeHtml(item.nextAction)}</strong>
+      </article>
+    `)
+    .join("");
 }
 
 function renderLeads(leads: Lead[]) {
@@ -219,7 +321,7 @@ function renderLeads(leads: Lead[]) {
     .map((lead) => `
       <tr>
         <td>${escapeHtml(lead.name)}</td>
-        <td>${escapeHtml(lead.company || "—")}</td>
+        <td>${escapeHtml(lead.company || "No company")}</td>
         <td>${escapeHtml(lead.source)}</td>
         <td><span class="status-pill">${escapeHtml(lead.status)}</span></td>
         <td>${lead.score}</td>
@@ -243,7 +345,7 @@ function renderConversations(conversations: DashboardConversation[]) {
   grid.innerHTML = conversations
     .slice(0, 6)
     .map((conversation) => `
-      <article class="panel compact">
+      <article class="panel compact ${conversation.handoffRequired ? "needs-review" : ""}">
         <span class="label">${escapeHtml(conversation.channel)}</span>
         <h3>${escapeHtml(conversation.lead?.company || conversation.lead?.name || "Unknown lead")}</h3>
         <p>${escapeHtml(conversation.summary || conversation.lastMessage || "No summary yet.")}</p>
