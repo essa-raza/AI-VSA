@@ -381,6 +381,126 @@ Built by **Razex Solutions LLC** as the foundation for an internal AI sales assi
 
 ---
 
+## 🚀 Shipped Product Layer
+
+The `5am` build branch now includes a stronger operator and closer workflow on top of the original multi-channel sales assistant foundation.
+
+| Layer | Status | Notes |
+| --- | --- | --- |
+| 📊 Revenue Intelligence Dashboard | ✅ Ready | Funnel metrics, source attribution, channel analytics, and recommendations |
+| 🚨 Operator Queue | ✅ Ready | Human handoff visibility with urgency, lead context, and next actions |
+| 👤 Closer Workspace | ✅ Ready | Conversation workspace with transcript, lead context, risk, urgency, and action guidance |
+| 🧠 Conversation Intelligence | ✅ Ready | Intent, sentiment, urgency score, deal risk score, buying signals, and objections |
+| 🏛️ Multi Agent Sales Council | ✅ Ready | Qualification, objection, closer, and compliance agents for sales decisions |
+| 🧩 Modular Workspace UI | ✅ Ready | New additive render modules for council, transcript, widgets, and workspace actions |
+
+---
+
+## 📊 Revenue Intelligence Dashboard
+
+The dashboard now summarizes sales performance instead of only showing raw records.
+
+| Capability | What it shows |
+| --- | --- |
+| 📈 Funnel reporting | Captured, qualified, booked, and won stages |
+| 🔍 Source performance | Lead volume, qualification rate, booking rate, and average score by source |
+| 💬 Channel performance | Conversation count, handoff count, and handoff rate by channel |
+| 🚨 Handoff pressure | Open, assigned, resolved, and high-priority handoff counts |
+| 🧭 Recommendations | Operational guidance based on current pipeline signals |
+
+---
+
+## 🚨 Operator Queue
+
+The operator queue turns human handoffs into visible work instead of hidden status flags.
+
+| Queue signal | Purpose |
+| --- | --- |
+| 🔥 High priority | Leads that need fast human review |
+| 👤 Assigned owner | Shows who should take the next action |
+| 💬 Conversation context | Shows channel and message count |
+| 🎯 Next action | Gives the closer a clear recommended move |
+
+---
+
+## 👤 Closer Workspace
+
+The closer workspace is the main sales-rep view for working a conversation.
+
+| Workspace section | Purpose |
+| --- | --- |
+| 🎯 Primary action | Tells the closer exactly what to do next |
+| 📈 Risk card | Shows deal risk and summary |
+| ⚡ Urgency card | Shows intent, sentiment, and urgency |
+| 🚨 Handoff card | Shows active escalation state |
+| 🧠 Buying signals | Highlights booking and purchase intent |
+| 🚧 Objections | Highlights price, timing, competitor, approval, or budget concerns |
+| 📜 Transcript | Shows the full conversation timeline |
+
+---
+
+## 🏛️ Multi Agent Sales Council
+
+AI-VSA now includes a lightweight sales council architecture for conversation decisions.
+
+| Agent | Responsibility |
+| --- | --- |
+| 🎯 Qualification Agent | Reviews fit, score, status, and missing qualification details |
+| 🚧 Objection Agent | Detects price, budget, timing, competitor, approval, and contract concerns |
+| 🤝 Closer Agent | Decides how to move the lead toward booking or proposal |
+| 🛡️ Compliance Agent | Flags risk and recommends human review when needed |
+
+Each council agent returns:
+
+| Field | Purpose |
+| --- | --- |
+| `verdict` | Short decision label |
+| `confidence` | Lightweight confidence score |
+| `rationale` | Why the agent made the decision |
+| `nextStep` | What the operator or closer should do next |
+
+---
+
+## 🧩 Modular Frontend Workspace Files
+
+The dashboard is being split into additive modules without deleting the existing `main.ts` implementation.
+
+| File | Purpose |
+| --- | --- |
+| `apps/web/src/workspaceTypes.ts` | Shared workspace and council types |
+| `apps/web/src/councilRenderer.ts` | Multi Agent Sales Council cards |
+| `apps/web/src/transcriptRenderer.ts` | Transcript timeline rendering |
+| `apps/web/src/workspaceActions.ts` | Workspace action chips and buttons |
+| `apps/web/src/workspaceWidgets.ts` | Metric cards, tag cards, and primary action widgets |
+| `apps/web/src/workspaceRenderer.ts` | Composes council, transcript, widgets, and actions |
+
+---
+
+## 🔌 Added API Highlights
+
+| Route | Purpose |
+| --- | --- |
+| `GET /api/analytics` | Revenue intelligence, funnel, source, channel, and handoff metrics |
+| `GET /api/handoffs` | List human handoffs with lead and conversation context |
+| `GET /api/handoffs/:id` | Load one handoff with transcript context |
+| `PATCH /api/handoffs/:id` | Assign or resolve a human handoff |
+| `GET /api/conversations/:id/analysis` | Conversation intelligence with intent, risk, urgency, objections, and council output |
+| `GET /api/conversations/:id/workspace` | Full closer workspace payload in one request |
+
+---
+
+## 🗺️ 5am Build Progress
+
+| Area | Status | Notes |
+| --- | --- | --- |
+| Conversation analytics | ✅ Ready | Implemented through `/api/analytics` and dashboard widgets |
+| Transcript evaluation | ✅ Ready | Conversation workspace and analysis endpoint provide transcript intelligence |
+| Operator workflows | ✅ Ready | Handoff API, operator queue, and workspace actions are in place |
+| Campaign scoring | 🔄 Next | Needs campaign-level attribution and scoring rules |
+| Multi-client tenancy | ⏳ Pending | Still planned for a later SaaS layer |
+
+---
+
 ## 🔗 Resources & Sources
 
 ### Core APIs & Services
